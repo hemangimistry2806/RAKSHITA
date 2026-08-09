@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  passwordHash      String
+  phone             String
+  dateOfBirth       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  contacts          EmergencyContact[]
+  healthReadings    HealthReading[]
+  locations         Location[]
+  devices           Device[]
+  emergencyEvents   EmergencyEvent[]
+
+  @@index([email])
+}
+
+model EmergencyContact {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String
+  relationship String
+  priority  Int      @default(1)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alerts    Alert[]
+
+  @@index([userId])
+  @@index([userId, priority])
+}
+
+model HealthReading {
+  id        String   @id @default(cuid())
+  userId    String
+  heartRate Int?
+  spo2      Int?
+  steps     Int?
+  recordedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  userId    String
+  latitude  Decimal  @db.Decimal(10, 7)
+  longitude Decimal  @db.Decimal(10, 7)
+  accuracy  Decimal? @db.Decimal(8, 2)
+  recordedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
+
+model Device {
+  id               String   @id @default(cuid())
+  userId           String
+  deviceName       String
+  deviceIdentifier String   @unique
+  batteryLevel     Int
+  connectionStatus String   @default("UNKNOWN")
+  lastSeenAt       DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deviceIdentifier])
+}
+
+model EmergencyEvent {
+  id            String    @id @default(cuid())
+  userId        String
+  type          String
+  severity      String
+  status        String
+  triggerReason String
+  heartRate     Int?
+  spo2          Int?
+  latitude      Decimal?  @db.Decimal(10, 7)
+  longitude     Decimal?  @db.Decimal(10, 7)
+  detectedAt    DateTime  @default(now())
+  resolvedAt    DateTime?
+  escalatedAt   DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alerts        Alert[]
+
+  @@index([userId, detectedAt])
+  @@index([status])
+  @@index([severity])
+}
+
+model Alert {
+  id               String           @id @default(cuid())
+  emergencyEventId String
+  contactId        String
+  alertType        String
+  status           String
+  sentAt           DateTime         @default(now())
+  deliveredAt      DateTime?
+  emergencyEvent   EmergencyEvent   @relation(fields: [emergencyEventId], references: [id], onDelete: Cascade)
+  contact          EmergencyContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([emergencyEventId])
+  @@index([contactId])
+}
